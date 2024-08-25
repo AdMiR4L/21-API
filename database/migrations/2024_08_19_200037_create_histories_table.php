@@ -13,18 +13,16 @@ return new class extends Migration
     {
         Schema::create('histories', function (Blueprint $table) {
             $table->id();
-            $table->string("title")->nullable();
-            $table->integer("price");
-            $table->integer("capacity");
             $table->unsignedBigInteger("game_id");
             $table->unsignedBigInteger("user_id");
             $table->integer("character_id")->nullable();
             $table->string("game_scenario")->nullable();
-            $table->tinyInteger("status");
             $table->tinyInteger("score")->nullable();
-            $table->string("season")->nullable();
+            $table->tinyInteger("win")->nullable();
             $table->integer("xp")->nullable();
-
+            $table->string("achievements")->nullable();
+            $table->string("chair_number")->nullable();
+            //$table->unsignedBigInteger("order_id")->nullable();
             $table->timestamps();
         });
     }

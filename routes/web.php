@@ -10,9 +10,6 @@ Route::get('/', function () {
 });
 
 
-Route::post('/login', [AuthController::class, 'login']);
-Route::middleware('auth:sanctum')->get('/user', [AuthController::class, 'user']);
-
-Route::group(['middleware' => 'auth:api'], function(){
-    Route::post('user-details', [UserController::class, 'userDetails']);
-});
+//Route::fallback(function () {
+//    return view('app');
+//});

@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('scenarios', function (Blueprint $table) {
             $table->id();
             $table->string("name");
-            $table->string("season_name");
-            $table->text("description");
-            $table->string("characters");
+            $table->text("description")->nullable();
+//            $table->string("characters");
+            $table->unsignedInteger("photo_id")->nullable();
             $table->timestamps();
         });
     }

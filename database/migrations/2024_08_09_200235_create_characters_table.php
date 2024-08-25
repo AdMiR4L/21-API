@@ -14,8 +14,10 @@ return new class extends Migration
         Schema::create('characters', function (Blueprint $table) {
             $table->id();
             $table->string("name");
-            $table->text("description");
-            $table->unsignedInteger("photo_id");
+            $table->string("nickname")->nullable();
+            $table->text("description")->nullable();
+            $table->tinyInteger("side");
+            $table->unsignedInteger("photo_id")->nullable();
             $table->timestamps();
         });
     }

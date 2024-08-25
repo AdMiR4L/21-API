@@ -17,12 +17,12 @@ return new class extends Migration
             $table->string("description")->nullable();
             $table->string("meta_description")->nullable();
             $table->string("meta_keywords")->nullable();
-            $table->string("season");
             $table->integer("price");
             $table->string("capacity");
             $table->string("extra_capacity");
             $table->string("available_capacity");
-            $table->string("game_scenario")->nullable();
+            $table->integer("game_scenario")->nullable();
+            $table->text("game_characters")->nullable();
             $table->string("salon");
             $table->string("grade");
             $table->string("clock");
@@ -31,6 +31,8 @@ return new class extends Migration
             $table->tinyInteger("special")->default(0);
             $table->unsignedInteger("god_id")->nullable();
             $table->unsignedInteger("photo_id")->nullable();
+            $table->tinyInteger("win_side")->nullable();
+            $table->unsignedInteger("mvp")->nullable();
             $table->timestamps();
         });
     }
