@@ -26,17 +26,19 @@ Route::post('/search', [HomeController::class, 'search']);
 
 
 
+
+
 Route::get('/game/payment/verify/{id}', [GameController::class, 'gamePaymentVerify']);
 
 
 Route::group(['middleware' => 'auth:sanctum'] , function () {
     Route::get('/user', function (Request $request) {return $request->user();});
     Route::post('/game/reserve', [GameController::class, 'reserve']);
-    Route::post('/game/change', [GameController::class, 'change']);
     Route::post('/game/edit', [GameController::class, 'gameEdit']);
     Route::post('/game/setting', [GameController::class, 'settingEdit']);
     Route::post('/game/scores', [GameController::class, 'scoresEdit']);
     Route::post('/game/send/characters', [GameController::class, 'sendUserCharacters']);
+    Route::post('/game/change/characters', [GameController::class, 'changeCharacters']);
     Route::post('/game/payment/attempt', [GameController::class, 'gamePayAttempt']);
 
     Route::get('/game/payment/status/{id}', [GameController::class, 'gamePaymentStatus']);

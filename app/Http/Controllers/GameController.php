@@ -18,7 +18,7 @@ class GameController extends Controller
 {
     public function index()
     {
-        $games = Game::query()->where('special', 0)->latest()->take(9)->get();
+        $games = Game::query()->where('special', 0)->latest()->take(16)->get();
         return response()->json($games);
     }
 
@@ -242,9 +242,10 @@ class GameController extends Controller
         $game = Game::query()->find($reserve->game_id);
         $order = Order::find($id);
 
-        $ZarinPal = new ZarinPal($game->price);
-        $result = $ZarinPal->verifyPayment($request->Authority , $request->Status);
-        //dd($result);
+        $ZarinPal = new ZarinPal($order->amount);
+        //$result = $ZarinPal->verifyPayment($request->Authority , $request->Status);
+        $result = $ZarinPal->verifyPayment("A000000000000000000000000000dnvmyp67" , "OK");
+        dd($result);
 
         if ($result) {
             $order->status = 1;
@@ -252,7 +253,7 @@ class GameController extends Controller
             $order->zarin_status = $request->Status;
             $order->RefID = $result->RefID;
             $reserve->update(['status' => 1]);
-            $order->update();
+            $order->save();
             $game->available_capacity -= count(json_decode($reserve->chair_no));
             $game->save();
             return redirect('https://21sport.club/verify/zarinpal/'.$id)->with('message', 'پرداخت شما با موفقیت انجام شد');
@@ -515,20 +516,43 @@ class GameController extends Controller
 //        }
 //    }
 
+    public function changeCharacters(Request $request)
+    {
+        $request->validate([
+            'game_id' => 'required|integer',
+            'capacity' => 'required|integer',
+        ]);
+        $game = Game::query()->find($request->game_id);
+
+
+        $gap = $game->capacity + $game->extra_capacity - $game->available_capacity;
+
+        $game->capacity = $request->capacity;
+        $game->available_capacity = $request->capacity - $gap;
+        $game->game_characters = $request->characters;
+        $game->save();
+
+        return response()->json("نقش های این بازی با موفقیت بروزرسانی شد", 200);
+
+    }
+
     public function cron()
     {
-        $clocks = ["16-18", "18-20", "20-22"];
+        $clocks = ["15:00-16:30", "16:30-18:00", "18:00-19:30", "19:30-21:00", "21:00-22:30", "22:30-00:00" ];
         $salons = [1, 2, 3];
 
         foreach ($salons as $salon) {
             foreach ($clocks as $clock) {
+                if ($salon === 1 && $clock < "18:00-19:30") {
+                    continue; // Skip this iteration
+                }
                 $game = new Game();
                 $game->capacity = 13;
                 $game->extra_capacity = 0;
                 $game->available_capacity = $game->capacity + $game->extra_capacity;
                 $game->game_scenario = null;
                 $game->game_characters = null;
-                $game->price = 50000;
+                $game->price = 55000;
                 $game->clock = $clock;
                 $game->salon = $salon;
                 $game->grade = "21-A-B-C-D";
