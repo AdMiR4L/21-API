@@ -37,6 +37,7 @@ Route::group(['middleware' => 'auth:sanctum'] , function () {
     Route::post('/game/edit', [GameController::class, 'gameEdit']);
     Route::post('/game/setting', [GameController::class, 'settingEdit']);
     Route::post('/game/scores', [GameController::class, 'scoresEdit']);
+    Route::post('/game/user/remove', [GameController::class, 'gameUserRemove']);
     Route::post('/game/send/characters', [GameController::class, 'sendUserCharacters']);
     Route::post('/game/change/characters', [GameController::class, 'changeCharacters']);
     Route::post('/game/payment/attempt', [GameController::class, 'gamePayAttempt']);

@@ -243,9 +243,9 @@ class GameController extends Controller
         $order = Order::find($id);
 
         $ZarinPal = new ZarinPal($order->amount);
-        //$result = $ZarinPal->verifyPayment($request->Authority , $request->Status);
-        $result = $ZarinPal->verifyPayment("A000000000000000000000000000dnvmyp67" , "OK");
-        dd($result);
+        $result = $ZarinPal->verifyPayment($request->Authority , $request->Status);
+        //$result = $ZarinPal->verifyPayment("A000000000000000000000000000dnvmyp67" , "OK");
+       // dd($result);
 
         if ($result) {
             $order->status = 1;
@@ -373,6 +373,20 @@ class GameController extends Controller
 
         // Return success response
         return response()->json("نتیجه و امتیازات بازی با موفقیت ذخیره شد", 200);
+    }
+
+
+    public function gameUserRemove(Request $request)
+    {
+        $request->validate([
+            'reserve_id' => 'required|integer',
+        ]);
+        $reserve = Reserve::query()->find($request->reserve_id);
+        $reserve->update(['status' => 3]);
+        $game = Game::query()->find($reserve->game_id);
+        $game->available_capacity = $game->available_capacity-1;
+        $game-save();
+        return response()->json("کاربر با موفقیت حذف شد", 200);
     }
 //    public function chooseUserChair(Request $request)
 //    {
