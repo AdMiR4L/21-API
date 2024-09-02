@@ -40,61 +40,67 @@ class GameController extends Controller
 
     }
 
-//    public function reserve(Request $request)
-//    {
-//        $request->validate([
-//            'game_id' => 'required|integer',
-//            'chair_no' => 'required|string|max:255',
-//        ]);
-//
-//        // Retrieve the reservations for the given event ID
-//        $reservations = Reserve::query()->where('game_id', $request->game_id)->get();
-//
-//        // Initialize an array to hold all unavailable seats
-//        $unavailableSeats = [];
-//
-//        // Loop through each reservation and parse the seat numbers
-//        foreach ($reservations as $reservation) {
-//            $seatNumbers = json_decode($reservation->chair_no, true);
-//            if (is_array($seatNumbers)) {
-//                $unavailableSeats = array_merge($unavailableSeats, $seatNumbers);
-//            }
-//        }
-//        // Check for intersection between requested seats and unavailable seats
-//        $conflicts = array_intersect(json_decode($request->chair_no), $unavailableSeats);
-//
-//        if (!empty($conflicts)) {
-//            return response()->json([
-//                'status' => 'error',
-//                'message' => 'Some seats are already reserved.',
-//                'reserved_seats' => $conflicts,
-//            ], 409);
-//        }
-//
-//
-//        $game = Game::query()->find($request->game_id);
-//        $game->available_capacity -= count(json_decode($request->chair_no));
-//        $game->save();
-//
-//        $user = $request->user();
-//        $reserve = new Reserve();
-//        $reserve->game_id = $request->game_id;
-//        $reserve->user_id = $user->id;
-//        $reserve->chair_no = $request->chair_no;
-//        $reserve->save();
-//        return response()->json("success", 200);
-//
-//    }
-//
-//    public function change(Request $request)
-//    {
-//        $game = Game::query()->findOrFail($request->game_id);
-//
-//        if ($game->god_id === $request->god_id)
-//            $game->status = 1;
-//        else
-//            return response()->json("Unauthorized Attempt, You filthy.", 401);
-//    }
+    public function noPaymentReserve(Request $request)
+    {
+        $request->validate([
+            'game_id' => 'required|integer',
+            'chair_no' => 'required|string|max:255',
+        ]);
+        $user = $request->user();
+        if ($user->grade == "A" || $user->grade == "B"){
+            // Retrieve the reservations for the given event ID
+            $reservations = Reserve::query()
+                ->where('game_id', $request->game_id)
+                ->where('status', 1)->get();
+
+
+            // Initialize an array to hold all unavailable seats
+            $unavailableSeats = [];
+            // Loop through each reservation and parse the seat numbers
+            foreach ($reservations as $reservation) {
+                $seatNumbers = json_decode($reservation->chair_no, true);
+                if (is_array($seatNumbers)) {
+                    $unavailableSeats = array_merge($unavailableSeats, $seatNumbers);
+                }
+            }
+            // Check for intersection between requested seats and unavailable seats
+            $conflicts = array_intersect(json_decode($request->chair_no), $unavailableSeats);
+
+            if (!empty($conflicts)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'صندلی انتخاب شده موجود نمیباشد',
+                    'reserved_seats' => $conflicts,
+                ], 409);
+            }
+
+            $game = Game::query()->find($request->game_id);
+            $game->available_capacity -= count(json_decode($request->chair_no));
+            $game->save();
+
+
+            $reserve = new Reserve();
+            $reserve->game_id = $request->game_id;
+            $reserve->user_id = $user->id;
+            $reserve->status = 1;
+            $reserve->chair_no = $request->chair_no;
+            $reserve->save();
+            return response()->json("جایگاه مورد نظر با موفقیت رزرو شد", 200);
+        }
+        else
+            return response()->json("سطح شما مجاز به رزرو حضوری نیست", 422);
+
+    }
+
+    public function change(Request $request)
+    {
+        $game = Game::query()->findOrFail($request->game_id);
+
+        if ($game->god_id === $request->god_id)
+            $game->status = 1;
+        else
+            return response()->json("Unauthorized Attempt, You filthy.", 401);
+    }
 
     public function gameEdit(Request $request)
     {
@@ -146,21 +152,55 @@ class GameController extends Controller
         return response()->json("تنظیمات بازی با موفقیت ذخیره شد" , 200);
     }
 
-    public function user(Request $request)
-    {
-        if (is_numeric($request->username))
-                $users = User::query()
-                    ->phone($request->username)
-                    ->get();
-        elseif (preg_match('/^[\x{0600}-\x{06FF}\s]+$/u', $request->username))
-             $users = User::query()
-                ->name($request->username)
-                 ->get();
-        else
-            $users = User::query()->nickname($request->username)->get();
-        return response()->json($users);
+//    public function user(Request $request)
+//    {
+//        if (is_numeric($request->username))
+//                $users = User::query()
+//                    ->phone(normalize_number($request->username))
+//                    ->get();
+//        elseif (preg_match('/^[\x{0600}-\x{06FF}\s]+$/u', $request->username))
+//             $users = User::query()
+//                ->name($request->username)
+//                 ->get();
+//        else
+//            $users = User::query()->nickname($request->username)->get();
+//        return response()->json($users);
+//    }
+
+
+    function normalize_number(String $string): String {
+        $persinaDigits1 = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+        $persinaDigits2 = ['٩', '٨', '٧', '٦', '٥', '٤', '٣', '٢', '١', '٠'];
+        $allPersianDigits = array_merge($persinaDigits1, $persinaDigits2);
+        $replaces = [...range(0, 9), ...range(0, 9)];
+
+        return str_replace($allPersianDigits, $replaces , $string);
     }
 
+
+    public function user(Request $request)
+    {
+        $username = $request->username;
+
+        // Normalize the username by converting Persian digits to English digits
+        $normalizedUsername = $this->normalize_number($username);
+
+        if (is_numeric($normalizedUsername)) {
+            $users = User::query()
+                ->where('phone', $normalizedUsername)
+                ->get();
+        } elseif (preg_match('/^[\x{0600}-\x{06FF}\s]+$/u', $normalizedUsername)) {
+            $users = User::query()
+                ->where('name', $normalizedUsername)
+                ->get();
+        } else {
+            $users = User::query()
+                ->where('nickname', $normalizedUsername)
+                ->get();
+        }
+
+        return response()->json($users);
+    }
 
 
     public function gamePayAttempt(Request $request)

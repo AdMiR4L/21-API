@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\HomeController;
 use Illuminate\Http\Request;
@@ -33,6 +34,8 @@ Route::get('/game/payment/verify/{id}', [GameController::class, 'gamePaymentVeri
 
 Route::group(['middleware' => 'auth:sanctum'] , function () {
     Route::get('/user', function (Request $request) {return $request->user();});
+    Route::post('/user/nickname', [HomeController::class, 'nickname']);
+    Route::post('/user/update', [DashboardController::class, 'update']);
     Route::post('/game/reserve', [GameController::class, 'reserve']);
     Route::post('/game/edit', [GameController::class, 'gameEdit']);
     Route::post('/game/setting', [GameController::class, 'settingEdit']);
@@ -41,6 +44,7 @@ Route::group(['middleware' => 'auth:sanctum'] , function () {
     Route::post('/game/send/characters', [GameController::class, 'sendUserCharacters']);
     Route::post('/game/change/characters', [GameController::class, 'changeCharacters']);
     Route::post('/game/payment/attempt', [GameController::class, 'gamePayAttempt']);
+    Route::post('/game/reserve/attempt', [GameController::class, 'noPaymentReserve']);
 
     Route::get('/game/payment/status/{id}', [GameController::class, 'gamePaymentStatus']);
     Route::post('/choose/user/chair', [GameController::class, 'chooseUserChair']);

@@ -111,6 +111,7 @@ return array(
     */
     'attributes' => array(
         "name" => "نام",
+        "nickname" => "نام کاربری",
         "code" => "کد",
         "username" => "نام کاربری",
         "email" => "ایمیل",

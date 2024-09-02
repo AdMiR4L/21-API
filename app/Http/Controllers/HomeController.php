@@ -23,4 +23,13 @@ class HomeController extends Controller
             ->get();
         return response()->json(['articles' => $article, 'users' => $user, 'games' => $game]);
     }
+
+    public function nickname(Request $request)
+    {
+        $request->validate([
+            'nickname' => 'required|string|min:3|unique:users|regex:/^(?!.*[_-]{2})[a-zA-Z0-9][a-zA-Z0-9_-]{1,18}[a-zA-Z0-9]$/',
+        ]);
+        return response()->json("نام کاربری مجاز است");
+
+    }
 }
