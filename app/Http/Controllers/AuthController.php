@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-<<<<<<< HEAD
+
     function normalize_number(String $string): String {
         $persinaDigits1 = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
         $persinaDigits2 = ['٩', '٨', '٧', '٦', '٥', '٤', '٣', '٢', '١', '٠'];
@@ -21,8 +21,6 @@ class AuthController extends Controller
 
         return str_replace($allPersianDigits, $replaces , $string);
     }
-=======
->>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
     public function login(Request $request)
     {
         $request->validate([
@@ -37,15 +35,11 @@ class AuthController extends Controller
         $loginType = filter_var($request->email, FILTER_VALIDATE_EMAIL) ? 'email' :
             (is_numeric($request->email) ? 'phone' : 'nickname');
 
-
-<<<<<<< HEAD
         $login = $request->email;
         if ($loginType == 'phone')
             $login = $this->normalize_number($login);
+
         if (!Auth::attempt([$loginType => $login, 'password' => $request->password])) {
-=======
-        if (!Auth::attempt([$loginType => $request->email, 'password' => $request->password])) {
->>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
@@ -75,15 +69,9 @@ class AuthController extends Controller
         $user =  User::create([
             'name' => $request['first_name'],
             'family' => $request['last_name'],
-<<<<<<< HEAD
             'phone' => $this->normalize_number($request['phone']),
             'email' => $request['email'],
             'local_id' => $this->normalize_number($request['local_id']),
-=======
-            'phone' => $request['phone'],
-            'email' => $request['email'],
-            'local_id' => $request['local_id'],
->>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
             'password' => Hash::make($request['password']),
         ]);
 

@@ -47,11 +47,16 @@ class GameController extends Controller
             'chair_no' => 'required|string|max:255',
         ]);
         $user = $request->user();
-<<<<<<< HEAD
-        if ($user->grade == "A" || $user->grade == "B"){
-=======
+        $check = Reserve::query()
+            ->where('game_id', $request->game_id)
+            ->where('user_id', $user->id)
+            ->where('status', 1)->first();
+        if ($check)
+            return response()->json('شما قبلا تیکت این رویداد را رزرو کرده اید', 422);
+        if(count(json_decode($request->chair_no)) > 1)
+            return response()->json('در حالت پرداخت حضوری فقط مجاز به انتخاب یک صندلی میباشید', 422);
+
         if ($user->grade == "A" || $user->grade == "B" || $user->grade == "21"){
->>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
             // Retrieve the reservations for the given event ID
             $reservations = Reserve::query()
                 ->where('game_id', $request->game_id)
@@ -115,10 +120,6 @@ class GameController extends Controller
             'game_scenario' => 'required|integer',
         ]);
 
-<<<<<<< HEAD
-        $game = Game::query()->find($request->game_id);
-        $game->game_scenario = $request->game_scenario;
-=======
         $scenario = Scenario::query()->find($request->game_scenario);
         $totalCharacterCount = $scenario->characters->sum('pivot.count');
 
@@ -130,7 +131,6 @@ class GameController extends Controller
         $gap = $game->capacity + $game->extra_capacity - $game->available_capacity;
         $game->capacity = $totalCharacterCount + $game->extra_capacity;
         $game->available_capacity = $totalCharacterCount + $game->extra_capacity - $gap;
->>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
 
         if ($request->god_id)
             $game->god_id = $request->god_id;
@@ -227,17 +227,14 @@ class GameController extends Controller
             'game_id' => 'required|integer',
             'chair_no' => 'required|string|max:255',
         ]);
-
-<<<<<<< HEAD
         $user = $request->user();
         $check = Reserve::query()
             ->where('game_id', $request->game_id)
             ->where('user_id', $user->id)
             ->where('status', 1)->first();
         if ($check)
-            return response()->json("شما قبلا تیکت این رویداد را رزرو کرده اید");
-=======
->>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
+            return response()->json('شما قبلا تیکت این رویداد را رزرو کرده اید', 422);
+
 
         $reservations = Reserve::query()
             ->where('game_id', $request->game_id)
@@ -274,12 +271,8 @@ class GameController extends Controller
 
         $payment = new ZarinPal($game->price , $order->id);
         $result = $payment->doPayment();
-
         $order->authority = $result->Authority;
         $order->save();
-//        $order->resCode = $result->ResCode;
-//        $order->token = $result->Token;
-
 
         $reserve = new Reserve();
         $reserve->game_id = $game->id;
@@ -452,50 +445,9 @@ class GameController extends Controller
         $reserve = Reserve::query()->find($request->reserve_id);
         $reserve->update(['status' => 3]);
         $game = Game::query()->find($reserve->game_id);
-<<<<<<< HEAD
-        $game->available_capacity = $game->available_capacity-1;
-        $game-save();
-        return response()->json("کاربر با موفقیت حذف شد", 200);
-    }
-//    public function chooseUserChair(Request $request)
-//    {
-//        $request->validate([
-//            'game_id' => 'required|integer',
-//            'order_id' => 'required|integer',
-//            'chairs' => 'required|array',
-//        ]);
-//        $notFound = [];
-//        foreach ($request->chairs as $chair => $input){
-//            if (is_numeric($input))
-//                $user = User::query()->where("phone" , $input)->first();
-//            else
-//                $user = User::query()->where("nickname" , $input)->first();
-//
-//            if ($user){
-//                $oldReserve = Reserve::where('order_id' , $request->order_id)->first();
-//                $oldReserve->status = 2;
-//                $oldReserve->save();
-//                $reserve = new Reserve();
-//                $reserve->user_id = $user->id;
-//                $reserve->game_id = $request->game_id;
-//                $reserve->chair_no = "[".$chair."]";
-//                $reserve->order_id = $request->order_id;
-//                $reserve->status = 1;
-//                $reserve->save();
-//            }
-//            else  $notFound[] = $chair;
-//        }
-//        return response()->json([
-//            'message' => 'User chair assignment processed.',
-//            'not_found_chairs' => $notFound,
-//        ]);
-//    }
-
-=======
         $game->update(["available_capacity" => $game->available_capacity-1]);
         return response()->json("کاربر با موفقیت حذف شد", 200);
     }
->>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
 
 
     public function chooseUserChair(Request $request)
