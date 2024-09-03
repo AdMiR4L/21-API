@@ -47,7 +47,11 @@ class GameController extends Controller
             'chair_no' => 'required|string|max:255',
         ]);
         $user = $request->user();
+<<<<<<< HEAD
         if ($user->grade == "A" || $user->grade == "B"){
+=======
+        if ($user->grade == "A" || $user->grade == "B" || $user->grade == "21"){
+>>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
             // Retrieve the reservations for the given event ID
             $reservations = Reserve::query()
                 ->where('game_id', $request->game_id)
@@ -111,8 +115,22 @@ class GameController extends Controller
             'game_scenario' => 'required|integer',
         ]);
 
+<<<<<<< HEAD
         $game = Game::query()->find($request->game_id);
         $game->game_scenario = $request->game_scenario;
+=======
+        $scenario = Scenario::query()->find($request->game_scenario);
+        $totalCharacterCount = $scenario->characters->sum('pivot.count');
+
+
+        $game = Game::query()->find($request->game_id);
+        $game->game_scenario = $request->game_scenario;
+        $game->game_characters = null;
+
+        $gap = $game->capacity + $game->extra_capacity - $game->available_capacity;
+        $game->capacity = $totalCharacterCount + $game->extra_capacity;
+        $game->available_capacity = $totalCharacterCount + $game->extra_capacity - $gap;
+>>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
 
         if ($request->god_id)
             $game->god_id = $request->god_id;
@@ -210,6 +228,7 @@ class GameController extends Controller
             'chair_no' => 'required|string|max:255',
         ]);
 
+<<<<<<< HEAD
         $user = $request->user();
         $check = Reserve::query()
             ->where('game_id', $request->game_id)
@@ -217,6 +236,8 @@ class GameController extends Controller
             ->where('status', 1)->first();
         if ($check)
             return response()->json("شما قبلا تیکت این رویداد را رزرو کرده اید");
+=======
+>>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
 
         $reservations = Reserve::query()
             ->where('game_id', $request->game_id)
@@ -431,6 +452,7 @@ class GameController extends Controller
         $reserve = Reserve::query()->find($request->reserve_id);
         $reserve->update(['status' => 3]);
         $game = Game::query()->find($reserve->game_id);
+<<<<<<< HEAD
         $game->available_capacity = $game->available_capacity-1;
         $game-save();
         return response()->json("کاربر با موفقیت حذف شد", 200);
@@ -469,6 +491,11 @@ class GameController extends Controller
 //        ]);
 //    }
 
+=======
+        $game->update(["available_capacity" => $game->available_capacity-1]);
+        return response()->json("کاربر با موفقیت حذف شد", 200);
+    }
+>>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
 
 
     public function chooseUserChair(Request $request)

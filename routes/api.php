@@ -1,5 +1,9 @@
 <?php
 
+<<<<<<< HEAD
+=======
+use App\Http\Controllers\AdminController;
+>>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
@@ -56,7 +60,13 @@ Route::group(['middleware' => 'auth:sanctum'] , function () {
     Route::post('/forgot/password/reset', [AuthController::class, 'forgotPasswordChange']);
 
 
+<<<<<<< HEAD
 
+=======
+    Route::get('/admin/users', [AdminController::class, 'users']);
+    Route::get('/admin/users/{id}', [AdminController::class, 'user']);
+    Route::post('/admin/user/update/{id}', [AdminController::class, 'userUpdate']);
+>>>>>>> 62af10d6be347c7e3eb5c63ec0e43e60e3ffaed9
 });
 
 Route::post('/find/user', [GameController::class, 'user']);
