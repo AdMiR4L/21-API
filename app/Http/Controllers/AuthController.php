@@ -12,6 +12,14 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    function normalize_number(String $string): String {
+        $persinaDigits1 = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+        $persinaDigits2 = ['٩', '٨', '٧', '٦', '٥', '٤', '٣', '٢', '١', '٠'];
+        $allPersianDigits = array_merge($persinaDigits1, $persinaDigits2);
+        $replaces = [...range(0, 9), ...range(0, 9)];
+
+        return str_replace($allPersianDigits, $replaces , $string);
+    }
     public function login(Request $request)
     {
         $request->validate([
@@ -27,7 +35,10 @@ class AuthController extends Controller
             (is_numeric($request->email) ? 'phone' : 'nickname');
 
 
-        if (!Auth::attempt([$loginType => $request->email, 'password' => $request->password])) {
+        $login = $request->email;
+        if ($loginType == 'phone')
+            $login = $this->normalize_number($login);
+        if (!Auth::attempt([$loginType => $login, 'password' => $request->password])) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
@@ -57,9 +68,9 @@ class AuthController extends Controller
         $user =  User::create([
             'name' => $request['first_name'],
             'family' => $request['last_name'],
-            'phone' => $request['phone'],
+            'phone' => $this->normalize_number($request['phone']),
             'email' => $request['email'],
-            'local_id' => $request['local_id'],
+            'local_id' => $this->normalize_number($request['local_id']),
             'password' => Hash::make($request['password']),
         ]);
 

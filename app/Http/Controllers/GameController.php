@@ -210,6 +210,13 @@ class GameController extends Controller
             'chair_no' => 'required|string|max:255',
         ]);
 
+        $user = $request->user();
+        $check = Reserve::query()
+            ->where('game_id', $request->game_id)
+            ->where('user_id', $user->id)
+            ->where('status', 1)->first();
+        if ($check)
+            return response()->json("شما قبلا تیکت این رویداد را رزرو کرده اید");
 
         $reservations = Reserve::query()
             ->where('game_id', $request->game_id)
