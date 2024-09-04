@@ -19,6 +19,7 @@ class GameController extends Controller
     public function index()
     {
         $games = Game::query()->where('special', 0)->latest()->take(16)->get();
+        //$games = Game::query()->where('special', 0)->orderBy('created_at', 'DESC')->take(16)->get();
         return response()->json($games);
     }
 
@@ -54,7 +55,7 @@ class GameController extends Controller
         if ($check)
             return response()->json('شما قبلا تیکت این رویداد را رزرو کرده اید', 422);
         if(count(json_decode($request->chair_no)) > 1)
-            return response()->json('در حالت پرداخت حضوری فقط مجاز به انتخاب یک صندلی میباشید', 422);
+            return response()->json('در حالت حضوری فقط یک صندلی قابل انتخاب است', 422);
 
         if ($user->grade == "A" || $user->grade == "B" || $user->grade == "21"){
             // Retrieve the reservations for the given event ID
@@ -471,7 +472,7 @@ class GameController extends Controller
             }
 
             if (is_numeric($input)) {
-                $user = User::query()->where('phone', $input)->first();
+                $user = User::query()->where('phone', $this->normalize_number($input))->first();
             } else {
                 $user = User::query()->where('nickname', $input)->first();
             }
@@ -527,34 +528,6 @@ class GameController extends Controller
     }
 
 
-
-
-
-//    public function getScenarioCharacters()
-//    {
-//        $scenario = Scenario::query()->find(1); // Assuming you have a scenario with ID 1
-//    /*
-//        $scenario->characters()->attach([
-//            51 => ['count' => 1],
-//            62 => ['count' => 1],
-//            63 => ['count' => 1],
-//            64 => ['count' => 1],
-//            52 => ['count' => 1],
-//            42 => ['count' => 1],
-//            16 => ['count' => 3],
-//            54 => ['count' => 1],
-//            44 => ['count' => 1],
-//            65 => ['count' => 1],
-//            66 => ['count' => 1],
-//            // Add other characters here
-//        ]);*/
-//
-//        $characters = $scenario->characters;
-//
-//        foreach ($characters as $character) {
-//            echo $character->name . ' appears ' . $character->pivot->count . ' times';
-//        }
-//    }
 
     public function changeCharacters(Request $request)
     {
