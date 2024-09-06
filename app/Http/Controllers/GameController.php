@@ -10,6 +10,7 @@ use App\Models\Reserve;
 use App\Models\Scenario;
 use App\Models\User;
 use App\Models\ZarinPal;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -18,7 +19,7 @@ class GameController extends Controller
 {
     public function index()
     {
-        $games = Game::query()->where('special', 0)->latest()->take(16)->get();
+        $games = Game::query()->where('special', 0)->latest()->take(15)->get();
         //$games = Game::query()->where('special', 0)->orderBy('created_at', 'DESC')->take(16)->get();
         return response()->json($games);
     }
@@ -41,6 +42,113 @@ class GameController extends Controller
 
     }
 
+    public function reservationValidate($game, $user, $chairs)
+    {
+        $check = Reserve::query()
+            ->where('game_id', $game)
+            ->where('user_id', $user->id)
+            ->where('status', 1)->first();
+        if ($check)
+            return response()->json('شما قبلا تیکت این رویداد را رزرو کرده اید', 422);
+
+        $reservations = Reserve::query()
+            ->where('game_id', $game)
+            ->where(function ($query) {
+                $query->where('status', 1)
+                    ->orWhere(function ($query) {
+                        $query->where('status', 0)
+                            ->where('created_at', '>', Carbon::now()->subMinutes(2));
+                    });
+            })
+            ->get();
+        $unavailableSeats = [];
+        foreach ($reservations as $reservation) {
+            $seatNumbers = json_decode($reservation->chair_no, true);
+            if (is_array($seatNumbers)) {
+                $unavailableSeats = array_merge($unavailableSeats, $seatNumbers);
+            }
+        }
+        $conflicts = array_intersect(json_decode($chairs), $unavailableSeats);
+        if (!empty($conflicts)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'صندلی انتخاب شده موجود نمیباشد',
+                'reserved_seats' => $conflicts,
+            ], 409);
+        }
+    }
+
+    public function gamePayAttempt(Request $request)
+    {
+        $request->validate([
+            'game_id' => 'required|integer',
+            'chair_no' => 'required|string|max:255',
+        ]);
+        $user = $request->user();
+//        $check = Reserve::query()
+//            ->where('game_id', $request->game_id)
+//            ->where('user_id', $user->id)
+//            ->where('status', 1)->first();
+//        if ($check)
+//            return response()->json('شما قبلا تیکت این رویداد را رزرو کرده اید', 422);
+        $this->reservationValidate($request->game_id, $user, $request->chair_no);
+
+
+//        $reservations = Reserve::query()
+//            ->where('game_id', $request->game_id)
+//            ->where('status', 1)->get();
+//        $unavailableSeats = [];
+//        foreach ($reservations as $reservation) {
+//            $seatNumbers = json_decode($reservation->chair_no, true);
+//            if (is_array($seatNumbers)) {
+//                $unavailableSeats = array_merge($unavailableSeats, $seatNumbers);
+//            }
+//        }
+//        // Check for intersection between requested seats and unavailable seats
+//        $conflicts = array_intersect(json_decode($request->chair_no), $unavailableSeats);
+//        if (!empty($conflicts)) {
+//            return response()->json([
+//                'status' => 'error',
+//                'message' => 'Some seats are already reserved.',
+//                'reserved_seats' => $conflicts,
+//            ], 409);
+//        }
+
+        $game = Game::findOrFail($request->game_id);
+        $order = new Order();
+        $order->amount = $game->price;
+        $order->user_id = $request->user()->id;
+        $order->game_id = $game->id;
+        $order->type = Game::class;
+        $order->method = "ZarinPal";
+        $order->save();
+
+        $payment = new ZarinPal($game->price , $order->id);
+        $result = $payment->doPayment();
+        $order->authority = $result->Authority;
+        $order->save();
+
+        $reserve = new Reserve();
+        $reserve->game_id = $game->id;
+        $reserve->user_id = $request->user()->id;
+        $reserve->order_id = $order->id;
+        $reserve->chair_no = $request->chair_no;
+        $reserve->save();
+
+
+        if ($result->Status == 100) {
+            return response()->json([
+                'status' => 100,
+                'authority' => $result->Authority
+            ]);
+        } else {
+            return response()->json([
+                'status' => $result->Status,
+                'message' => 'Payment failed'
+            ], 400);
+        }
+    }
+
     public function noPaymentReserve(Request $request)
     {
         $request->validate([
@@ -48,41 +156,37 @@ class GameController extends Controller
             'chair_no' => 'required|string|max:255',
         ]);
         $user = $request->user();
-        $check = Reserve::query()
-            ->where('game_id', $request->game_id)
-            ->where('user_id', $user->id)
-            ->where('status', 1)->first();
-        if ($check)
-            return response()->json('شما قبلا تیکت این رویداد را رزرو کرده اید', 422);
+
+        $this->reservationValidate($request->game_id, $user, $request->chair_no);
+//        $check = Reserve::query()
+//            ->where('game_id', $request->game_id)
+//            ->where('user_id', $user->id)
+//            ->where('status', 1)->first();
+//        if ($check)
+//            return response()->json('شما قبلا تیکت این رویداد را رزرو کرده اید', 422);
         if(count(json_decode($request->chair_no)) > 1)
             return response()->json('در حالت حضوری فقط یک صندلی قابل انتخاب است', 422);
 
         if ($user->grade == "A" || $user->grade == "B" || $user->grade == "21"){
-            // Retrieve the reservations for the given event ID
-            $reservations = Reserve::query()
-                ->where('game_id', $request->game_id)
-                ->where('status', 1)->get();
 
-
-            // Initialize an array to hold all unavailable seats
-            $unavailableSeats = [];
-            // Loop through each reservation and parse the seat numbers
-            foreach ($reservations as $reservation) {
-                $seatNumbers = json_decode($reservation->chair_no, true);
-                if (is_array($seatNumbers)) {
-                    $unavailableSeats = array_merge($unavailableSeats, $seatNumbers);
-                }
-            }
-            // Check for intersection between requested seats and unavailable seats
-            $conflicts = array_intersect(json_decode($request->chair_no), $unavailableSeats);
-
-            if (!empty($conflicts)) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'صندلی انتخاب شده موجود نمیباشد',
-                    'reserved_seats' => $conflicts,
-                ], 409);
-            }
+//            $reservations = Reserve::query()
+//                ->where('game_id', $request->game_id)
+//                ->where('status', 1)->get();
+//            $unavailableSeats = [];
+//            foreach ($reservations as $reservation) {
+//                $seatNumbers = json_decode($reservation->chair_no, true);
+//                if (is_array($seatNumbers)) {
+//                    $unavailableSeats = array_merge($unavailableSeats, $seatNumbers);
+//                }
+//            }
+//            $conflicts = array_intersect(json_decode($request->chair_no), $unavailableSeats);
+//            if (!empty($conflicts)) {
+//                return response()->json([
+//                    'status' => 'error',
+//                    'message' => 'صندلی انتخاب شده موجود نمیباشد',
+//                    'reserved_seats' => $conflicts,
+//                ], 409);
+//            }
 
             $game = Game::query()->find($request->game_id);
             $game->available_capacity -= count(json_decode($request->chair_no));
@@ -222,79 +326,7 @@ class GameController extends Controller
     }
 
 
-    public function gamePayAttempt(Request $request)
-    {
-        $request->validate([
-            'game_id' => 'required|integer',
-            'chair_no' => 'required|string|max:255',
-        ]);
-        $user = $request->user();
-        $check = Reserve::query()
-            ->where('game_id', $request->game_id)
-            ->where('user_id', $user->id)
-            ->where('status', 1)->first();
-        if ($check)
-            return response()->json('شما قبلا تیکت این رویداد را رزرو کرده اید', 422);
 
-
-        $reservations = Reserve::query()
-            ->where('game_id', $request->game_id)
-            ->where('status', 1)->get();
-        $unavailableSeats = [];
-        foreach ($reservations as $reservation) {
-            $seatNumbers = json_decode($reservation->chair_no, true);
-            if (is_array($seatNumbers)) {
-                $unavailableSeats = array_merge($unavailableSeats, $seatNumbers);
-            }
-        }
-        // Check for intersection between requested seats and unavailable seats
-        $conflicts = array_intersect(json_decode($request->chair_no), $unavailableSeats);
-        if (!empty($conflicts)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Some seats are already reserved.',
-                'reserved_seats' => $conflicts,
-            ], 409);
-        }
-
-        $game = Game::findOrFail($request->game_id);
-
-
-
-
-        $order = new Order();
-        $order->amount = $game->price;
-        $order->user_id = $request->user()->id;
-        $order->game_id = $game->id;
-        $order->type = Game::class;
-        $order->method = "ZarinPal";
-        $order->save();
-
-        $payment = new ZarinPal($game->price , $order->id);
-        $result = $payment->doPayment();
-        $order->authority = $result->Authority;
-        $order->save();
-
-        $reserve = new Reserve();
-        $reserve->game_id = $game->id;
-        $reserve->user_id = $request->user()->id;
-        $reserve->order_id = $order->id;
-        $reserve->chair_no = $request->chair_no;
-        $reserve->save();
-
-
-        if ($result->Status == 100) {
-            return response()->json([
-                'status' => 100,
-                'authority' => $result->Authority
-            ]);
-        } else {
-            return response()->json([
-                'status' => $result->Status,
-                'message' => 'Payment failed'
-            ], 400);
-        }
-    }
 
 
     public function gamePaymentVerify(Request $request, $id)
@@ -551,14 +583,16 @@ class GameController extends Controller
 
     public function cron()
     {
-        $clocks = ["15:00-16:30", "16:30-18:00", "18:00-19:30", "19:30-21:00", "21:00-22:30", "22:30-00:00" ];
+        // $clocks = ["16-18", "18-20", "20-22"];
+        // $clocks = ["15:00-16:30", "16:30-18:00", "18:00-19:30", "19:30-21:00", "21:00-22:30", "22:30-00:00" ];
+        $clocks = ["16:30-18:00", "18:00-19:30", "19:30-21:00", "21:00-22:30", "22:30-00:00" ];
         $salons = [1, 2, 3];
 
         foreach ($salons as $salon) {
             foreach ($clocks as $clock) {
-                if ($salon === 1 && $clock < "18:00-19:30") {
+                /*if ($salon === 1 && $clock < "18:00-19:30") {
                     continue; // Skip this iteration
-                }
+                }*/
                 $game = new Game();
                 $game->capacity = 13;
                 $game->extra_capacity = 0;

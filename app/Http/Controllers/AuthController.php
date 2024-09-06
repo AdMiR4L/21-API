@@ -69,9 +69,9 @@ class AuthController extends Controller
         $user =  User::create([
             'name' => $request['first_name'],
             'family' => $request['last_name'],
-            'phone' => $this->normalize_number($request['phone']),
+            'phone' => $request['phone'],
             'email' => $request['email'],
-            'local_id' => $this->normalize_number($request['local_id']),
+            'local_id' => $request['local_id'],
             'password' => Hash::make($request['password']),
         ]);
 
@@ -104,7 +104,7 @@ class AuthController extends Controller
             $user->update(['status' => 1]);
             return response()->json("شما با موفقیت وارد شدید", 200);
         }
-        else  return response()->json("کد وارد شده نا معتبر است", 422);
+        else  return response()->json(["message" => "کد وارد شده نا معتبر است", 422]);
     }
 
     public function forgotPassword(Request $request)

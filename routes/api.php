@@ -24,6 +24,7 @@ Route::post('/forgot/password/code', [AuthController::class, 'forgotPasswordSend
 
 
 Route::get('/articles', [ArticleController::class, 'index']);
+Route::get('/leaderboard', [HomeController::class, 'leaderboard']);
 Route::post('/search', [HomeController::class, 'search']);
 
 

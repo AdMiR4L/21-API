@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Article;
 use App\Models\Game;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class HomeController extends Controller
@@ -31,5 +32,23 @@ class HomeController extends Controller
         ]);
         return response()->json("نام کاربری مجاز است");
 
+    }
+
+    public function leaderboard()
+    {
+        $month = Carbon::now()->subMonth();
+        $week = Carbon::now()->subWeek();
+        $endDate = Carbon::now();
+
+        $players = User::query()
+            ->whereBetween('created_at', [$month, $endDate])
+            ->orderBy('score', 'desc')
+            ->take(10)
+            ->get();  // Select necessary columns
+        $champ =  User::query()
+            ->whereBetween('created_at', [$week, $endDate])
+            ->orderBy('score', 'desc')
+            ->first();
+        return response()->json($players, $champ);
     }
 }
