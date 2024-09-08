@@ -27,7 +27,7 @@ class GameController extends Controller
 
     public function single($id)
     {
-        $game = Game::query()->with(["god.avatar", "scenario.characters", "history"])->findOrFail($id);
+        $game = Game::query()->with(["god", "scenario.characters", "history"])->findOrFail($id);
         $reservations = Reserve::with('user')->where("game_id", $id)->where('status' , 1)->get();
         $scenarios =  Scenario::query()->get();
         $histories = History::query()->where("game_id", $id)->get();
@@ -44,6 +44,10 @@ class GameController extends Controller
 
     public function reservationValidate($game, $user, $chairs)
     {
+//        $gradeCheck = User::checkUserGrade($game->grade, $user->grade);
+//        if ($gradeCheck === false)
+//            return response()->json('سطح کاربری شما اجازه شرکت در این رویداد را ندارد', 422);
+
         $check = Reserve::query()
             ->where('game_id', $game)
             ->where('user_id', $user->id)
@@ -76,6 +80,7 @@ class GameController extends Controller
                 'reserved_seats' => $conflicts,
             ], 409);
         }
+        return true;
     }
 
     public function gamePayAttempt(Request $request)
@@ -85,34 +90,11 @@ class GameController extends Controller
             'chair_no' => 'required|string|max:255',
         ]);
         $user = $request->user();
-//        $check = Reserve::query()
-//            ->where('game_id', $request->game_id)
-//            ->where('user_id', $user->id)
-//            ->where('status', 1)->first();
-//        if ($check)
-//            return response()->json('شما قبلا تیکت این رویداد را رزرو کرده اید', 422);
-        $this->reservationValidate($request->game_id, $user, $request->chair_no);
 
+        $validationResponse = $this->reservationValidate($request->game_id, $user, $request->chair_no);
+        if ($validationResponse !== true)
+            return $validationResponse; // If validation fails, return the error response
 
-//        $reservations = Reserve::query()
-//            ->where('game_id', $request->game_id)
-//            ->where('status', 1)->get();
-//        $unavailableSeats = [];
-//        foreach ($reservations as $reservation) {
-//            $seatNumbers = json_decode($reservation->chair_no, true);
-//            if (is_array($seatNumbers)) {
-//                $unavailableSeats = array_merge($unavailableSeats, $seatNumbers);
-//            }
-//        }
-//        // Check for intersection between requested seats and unavailable seats
-//        $conflicts = array_intersect(json_decode($request->chair_no), $unavailableSeats);
-//        if (!empty($conflicts)) {
-//            return response()->json([
-//                'status' => 'error',
-//                'message' => 'Some seats are already reserved.',
-//                'reserved_seats' => $conflicts,
-//            ], 409);
-//        }
 
         $game = Game::findOrFail($request->game_id);
         $order = new Order();
@@ -157,7 +139,9 @@ class GameController extends Controller
         ]);
         $user = $request->user();
 
-        $this->reservationValidate($request->game_id, $user, $request->chair_no);
+        $validationResponse = $this->reservationValidate($request->game_id, $user, $request->chair_no);
+        if ($validationResponse !== true)
+            return $validationResponse; // If validation fails, return the error response
 //        $check = Reserve::query()
 //            ->where('game_id', $request->game_id)
 //            ->where('user_id', $user->id)
@@ -457,13 +441,87 @@ class GameController extends Controller
         $histories = History::where('game_id', $game->id)->get();
 
         // Update scores and win status
-        foreach ($histories as $history) {
+        /*foreach ($histories as $history) {
             if (isset($request->scores[$history->user_id])) {
                 $history->score = $request->scores[$history->user_id];
                 $history->win = in_array($history->character->side, explode(',', $game->win_side)) ? 1 : 0;
                 $history->save();
+
+                $userHistoryStats = History::query()
+                    ->where('user_id', $history->user_id)
+                    ->selectRaw('SUM(score) as total_score, SUM(win) as total_wins')
+                    ->first();
+
+                // Update the user's score and win columns with the total values
+                User::query()
+                    ->where('id', $history->user_id)
+                    ->update([
+                        'score' => $userHistoryStats->total_score,
+                        'win' => $userHistoryStats->total_wins,
+                    ]);
+            }
+        }*/
+
+        foreach ($histories as $history) {
+            if (isset($request->scores[$history->user_id])) {
+                // Update individual history record
+                $score = $request->scores[$history->user_id];
+                $history->score = $score;
+                $history->win = in_array($history->character->side, explode(',', $game->win_side)) ? 1 : 0;
+                $history->save();
+
+                // Calculate XP based on score
+                $xp = match(true) {
+                    $score >= 8 && $score <= 10 => 2,
+                    $score >= 6 && $score < 8  => 1.5,
+                    $score >= 4 && $score < 6  => 1,
+                    $score >= 2 && $score < 4  => 0.5,
+                    default => 0,
+                };
+
+                // Get the sum of all scores and wins for this user from the histories table
+                $userHistoryStats = History::query()
+                    ->where('user_id', $history->user_id)
+                    ->selectRaw('SUM(score) as total_score, SUM(win) as total_wins')
+                    ->first();
+
+                // Get the current user details (including XP and Level) using Eloquent
+                $user = User::find($history->user_id);
+
+                // Update user's XP
+                $newXp = $user->xp + $xp;
+
+                // Define XP thresholds for leveling
+                $xpThresholds = [
+                    21 => 5242880, 20 => 2621440, 19 => 1310720,
+                    18 => 655360, 17 => 327680, 16 => 163840,
+                    15 => 81920, 14 => 40960, 13 => 20480,
+                    12 => 10240, 11 => 5120, 10 => 2560,
+                    9 => 1280, 8 => 640, 7 => 320,
+                    6 => 160, 5 => 80, 4 => 40,
+                    3 => 20, 2 => 10
+                ];
+
+                // Determine new level based on XP thresholds
+                $newLevel = 1; // Default to level 1
+                foreach ($xpThresholds as $level => $xpRequired) {
+                    if ($newXp >= $xpRequired) {
+                        $newLevel = $level;
+                        break;
+                    }
+                }
+
+                // Update the user's score, win, XP, and level columns with the new values using Eloquent
+                $user->update([
+                    'score' => $userHistoryStats->total_score,
+                    'win' => $userHistoryStats->total_wins,
+                    'xp' => $newXp,
+                    'level' => $newLevel,
+                ]);
             }
         }
+
+
 
         // Return success response
         return response()->json("نتیجه و امتیازات بازی با موفقیت ذخیره شد", 200);

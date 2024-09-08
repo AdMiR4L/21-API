@@ -33,11 +33,14 @@ Route::post('/search', [HomeController::class, 'search']);
 
 Route::get('/game/payment/verify/{id}', [GameController::class, 'gamePaymentVerify']);
 
-
+Route::get('/leader', function (){
+    return "Hello World";
+});
 Route::group(['middleware' => 'auth:sanctum'] , function () {
-    Route::get('/user', function (Request $request) {return $request->user();});
-    Route::post('/user/nickname', [HomeController::class, 'nickname']);
+    Route::get('/user', function (Request $request) {return $request->user()->with('');});
+    Route::post('/user/nickname', [DashboardController::class, 'nickname']);
     Route::post('/user/update', [DashboardController::class, 'update']);
+    Route::post('/user/avatar', [DashboardController::class, 'avatar']);
     Route::post('/game/reserve', [GameController::class, 'reserve']);
     Route::post('/game/edit', [GameController::class, 'gameEdit']);
     Route::post('/game/setting', [GameController::class, 'settingEdit']);

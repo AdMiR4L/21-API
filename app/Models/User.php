@@ -27,11 +27,17 @@ class User extends Authenticatable
         'status',
         'phone',
         'local_id',
+        'photo_id',
         'password',
         'phone_register_code',
         'phone_register_code_expired_at',
         'forgot_password',
         'forgot_password_expired_at',
+        'score',
+        'win',
+        'xp',
+        'level',
+        'grade',
     ];
 
     /**
@@ -66,10 +72,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(Order::class, 'user_id');
     }
-    public function avatar()
-    {
-        return $this->hasMany(Photo::class, 'user_id');
-    }
+//    public function avatar()
+//    {
+//        return $this->hasMany(Photo::class, 'user_id');
+//    }
     public function getPhoneRegisterCode()
     {
         if ($this->phone_register_code !== NULL && Carbon::parse($this->phone_register_code_expired_at) > Carbon::now())
@@ -115,6 +121,16 @@ class User extends Authenticatable
 //        return $this->uploads.$avatar->path;
 //    }
 
+
+    protected $appends = ['avatar'];
+    public function getAvatarAttribute()
+    {
+        if($this->photo_id){
+            $avatar = Photo::query()->findOrFail($this->photo_id);
+            return $avatar->path;
+        }
+        else return false;
+    }
     public function scopeName($query , $name)
     {
         if (is_null($name))
@@ -150,5 +166,14 @@ class User extends Authenticatable
             return $query;
         $query->where("city_id" , $search);
         return $query;
+    }
+
+    public static function checkUserGrade($gameGrade, $userGrade)
+    {
+        $gameGradeParts = explode('-', $gameGrade);
+        if (in_array($userGrade, $gameGradeParts))
+            return true;
+        else
+            return false;
     }
 }

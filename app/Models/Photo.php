@@ -9,8 +9,8 @@ class Photo extends Model
 {
     use HasFactory;
 
-    public function avatar()
+    public function user()
     {
-        return $this->belongsTo(Photo::class, 'user_id');
+        return $this->belongsTo(User::class, );
     }
 }
