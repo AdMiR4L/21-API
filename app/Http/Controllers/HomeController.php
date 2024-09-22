@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Article;
 use App\Models\Game;
+use App\Models\Question;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class HomeController extends Controller
 {
@@ -35,13 +37,13 @@ class HomeController extends Controller
             $endDate = Carbon::now();
 
             $players = User::query()
-                ->whereBetween('created_at', [$month, $endDate])
+                ->whereBetween('updated_at', [$month, $endDate])
                 ->orderBy('score', 'desc')
                 ->take(10)
                 ->get();
 
             $champ = User::query()
-                ->whereBetween('created_at', [$week, $endDate])
+                ->whereBetween('updated_at', [$week, $endDate])
                 ->orderBy('score', 'desc')
                 ->first();
 
@@ -52,6 +54,42 @@ class HomeController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    public function gamesLeaderboard(Request $request)
+    {
+        if ($request->bearerToken())
+            $user = Auth::guard('sanctum')->user();
+         else
+            $user = null;
+
+
+        $players = User::query()
+            ->orderBy('score', 'desc')
+            ->take(50)
+            ->get();
+
+        $self = null;
+        $selfRank = null;
+
+        if ($user) {
+            $self = User::find($user->id);
+            $selfScore = $self->score;
+            $selfRank = User::query()
+                    ->where('score', '>', $selfScore)
+                    ->count() + 1; // Rank is 1 + the number of users with a higher score
+        }
+        return response()->json([
+            'players' => $players,
+            'self' => $user,
+            'self_rank' => $selfRank
+        ]);
+    }
+
+    public function questions()
+    {
+        $questions = Question::query()->latest()->limit(3)->get();
+        return response()->json($questions);
     }
 
 }

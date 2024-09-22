@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\History;
+use App\Models\Order;
 use App\Models\Photo;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -94,5 +96,18 @@ class DashboardController extends Controller
         ]);
         return response()->json("نام کاربری مجاز است");
 
+    }
+
+    public function transactions(Request $request)
+    {
+        $user = $request->user();
+        $orders = Order::with("game")->where("user_id", $user->id)->latest()->paginate(10);
+        return response()->json([$orders]);
+    }
+    public function history(Request $request)
+    {
+        $user = $request->user();
+        $orders = History::with(["game.scenario", "character"])->where("user_id", $user->id)->latest()->paginate(10);
+        return response()->json([$orders]);
     }
 }

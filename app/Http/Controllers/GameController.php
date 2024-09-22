@@ -9,10 +9,13 @@ use App\Models\Order;
 use App\Models\Reserve;
 use App\Models\Scenario;
 use App\Models\User;
+use App\Models\UserLog;
 use App\Models\ZarinPal;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class GameController extends Controller
@@ -42,11 +45,21 @@ class GameController extends Controller
 
     }
 
+    public static function checkUserGrade($gameGrade, $userGrade)
+    {
+        $gameGradeParts = explode('-', $gameGrade);
+        if (in_array($userGrade, $gameGradeParts))
+            return true;
+        else
+            return false;
+    }
+
     public function reservationValidate($game, $user, $chairs)
     {
-//        $gradeCheck = User::checkUserGrade($game->grade, $user->grade);
-//        if ($gradeCheck === false)
-//            return response()->json('سطح کاربری شما اجازه شرکت در این رویداد را ندارد', 422);
+        $gameGrade = Game::findOrFail($game)->grade;
+        $gradeCheck = $this->checkUserGrade($gameGrade, $user->grade);
+        if ($gradeCheck === false)
+            return response()->json('سطح کاربری شما اجازه شرکت در این رویداد را ندارد', 422);
 
         $check = Reserve::query()
             ->where('game_id', $game)
@@ -322,9 +335,6 @@ class GameController extends Controller
 
         $ZarinPal = new ZarinPal($order->amount);
         $result = $ZarinPal->verifyPayment($request->Authority , $request->Status);
-        //$result = $ZarinPal->verifyPayment("A000000000000000000000000000dnvmyp67" , "OK");
-       // dd($result);
-
         if ($result) {
             $order->status = 1;
             $order->authority = $request->Authority;
@@ -345,67 +355,47 @@ class GameController extends Controller
         $order = Order::with(['reserve.user' , 'game.god', 'game.scenario', 'user'])->find($id);
         if ($order->user_id === $request->user()->id)
         return response()->json($order);
-        else response()->json("Your Cant Visit Order" , 404);
+        else response()->json("You Cant Visit Order Info" , 404);
     }
-
-
-
 
 
 
     public function sendUserCharacters(Request $request)
     {
-        $request->validate([
+       $request->validate([
             'userCharacters' => 'required|array',
             'game_id' => 'required|integer',
         ]);
-        $game = Game::query()->find($request->game_id);
-        $game->update(["status" => 1]);
-        $history = History::query()->where("game_id", $request->game_id)->get();
-        if (count($history)){
-            foreach($history as $item)
-            {
-                $user = User::query()->find ($item->user_id);
-                event(new SendUserCharacterWithSMS($user , $game));
-            }
-            return response()->json("نقش ها با موفقیت از طریق پیامک ارسال شدند", 200);
+
+        $game = Game::find($request->game_id);
+        if (!$game) {
+            return response()->json("Game not found", 404);
         }
-        return response()->json("لطفا قبل از ارسال نقش اطلاعات را ذخیره کنید", 422);
+
+        // Update the game's status to 1 (assuming 1 means active or processing)
+        $game->update(['status' => 1]);
+
+        // Retrieve history records for the given game_id
+        $history = History::where('game_id', $request->game_id)->get();
+
+        // Check if any history exists
+        if ($history->isEmpty())
+            return response()->json("لطفا قبل از ارسال نقش اطلاعات را ذخیره کنید", 422);
+
+
+        // Use eager loading to optimize user retrieval and prevent N+1 query issue
+        $users = User::whereIn('id', $history->pluck('user_id'))->get()->keyBy('id');
+
+        // Send SMS to each user associated with the history
+        foreach ($history as $item) {
+            $user = $users->get($item->user_id);
+            if ($user)
+                event(new SendUserCharacterWithSMS($user, $game));
+        }
+
+        return response()->json("نقش ها با موفقیت از طریق پیامک ارسال شدند", 200);
     }
 
-//    public function scoresEdit(Request $request)
-//    {
-//        $request->validate([
-//            'scores' => 'required|array',
-//            'game_id' => 'required|integer',
-//            'mvp' => 'required|integer',
-//            'side' => 'required|array',
-//        ]);
-//
-//        $game = Game::query()->find($request->game_id);
-//        $game->mvp = $request->mvp;
-//        if (is_array($request->side)){
-//            $win = [];
-//            foreach ($request->side as $side => $value)
-//                if ($value)
-//                    $win[] = $side;
-//            $game->win_side = implode(",", $win);
-//        }
-//        $game->update();
-//
-//        $history = History::query()->where("game_id", $game->id);
-//        foreach ($request->scores as $user => $score){
-//            $history = History::query()
-//                ->where("game_id" , $game->id)
-//                ->where("user_id" , $user)
-//                ->first();
-//            $history->score = $score;
-//            if ($game->win_side === $history->character->side)
-//            $history->win = 1;
-//            $history->save();
-//        }
-//        return response()->json("نتیجه و امتیازات بازی با موفقت ذخیره شد" , 200);
-//    }
 
 
     public function scoresEdit(Request $request)
@@ -433,35 +423,10 @@ class GameController extends Controller
             $win = array_keys(array_filter($request->side));
             $game->win_side = implode(",", $win);
         }
-
-        // Save the game
         $game->save();
 
         // Fetch all history records related to the game in one query
         $histories = History::where('game_id', $game->id)->get();
-
-        // Update scores and win status
-        /*foreach ($histories as $history) {
-            if (isset($request->scores[$history->user_id])) {
-                $history->score = $request->scores[$history->user_id];
-                $history->win = in_array($history->character->side, explode(',', $game->win_side)) ? 1 : 0;
-                $history->save();
-
-                $userHistoryStats = History::query()
-                    ->where('user_id', $history->user_id)
-                    ->selectRaw('SUM(score) as total_score, SUM(win) as total_wins')
-                    ->first();
-
-                // Update the user's score and win columns with the total values
-                User::query()
-                    ->where('id', $history->user_id)
-                    ->update([
-                        'score' => $userHistoryStats->total_score,
-                        'win' => $userHistoryStats->total_wins,
-                    ]);
-            }
-        }*/
-
         foreach ($histories as $history) {
             if (isset($request->scores[$history->user_id])) {
                 // Update individual history record
@@ -665,5 +630,118 @@ class GameController extends Controller
                 $game->save();
             }
         }
+    }
+
+
+    public function archive()
+    {
+        $perPage = 7; // Number of groups (dates) per page
+        $page = request()->input('page', 1); // Current page, default to 1 if not provided
+        $today = now()->toDateString();
+        $yesterday = now()->subDay()->toDateString();
+        // Retrieve all records
+        $games = Game::with('mvpUser', 'scenario')  // Eager load the MVP user relationship
+        ->select(
+            DB::raw('DATE(created_at) as date'),
+            'salon',
+            'clock',
+            'id',
+            'status',
+            'win_side',
+            'game_scenario',
+            'mvp'
+        )
+            ->whereDate('created_at', '<', $yesterday)
+            ->orderBy('created_at')
+            ->orderBy('salon')
+            ->orderBy('clock')
+            ->get();
+
+        // Group records by date
+        $groupedGames = $games->groupBy(function($item) {
+            return $item->date;
+        })->map(function($dateGroup) {
+            return $dateGroup->groupBy('salon')->map(function($salonGroup) {
+                return $salonGroup;
+            });
+        });
+
+        // Reverse the order of the grouped dates
+        $groupedGames = $groupedGames->sortKeysDesc();
+
+        // Convert grouped data to array for pagination
+        $groupedGamesArray = $groupedGames->toArray();
+
+        // Paginate the reversed data
+        $groups = array_slice($groupedGamesArray, ($page - 1) * $perPage, $perPage);
+        $paginatedGroupedGames = new LengthAwarePaginator(
+            $groups,
+            count($groupedGamesArray),
+            $perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'query' => request()->query()
+            ]
+        );
+
+        // Build pagination metadata
+        $pagination = [
+            'first_page_url' => $paginatedGroupedGames->url(1),
+            'from' => $paginatedGroupedGames->firstItem(),
+            'last_page' => $paginatedGroupedGames->lastPage(),
+            'last_page_url' => $paginatedGroupedGames->url($paginatedGroupedGames->lastPage()),
+            'next_page_url' => $paginatedGroupedGames->nextPageUrl(),
+            'prev_page_url' => $paginatedGroupedGames->previousPageUrl(),
+            'per_page' => $paginatedGroupedGames->perPage(),
+            'current_page' => $paginatedGroupedGames->currentPage(),
+            'total' => $paginatedGroupedGames->total(),
+            'links' => [
+                [
+                    'url' => $paginatedGroupedGames->previousPageUrl(),
+                    'label' => 'قبلی',
+                    'active' => false,
+                ],
+                ...collect(range(1, $paginatedGroupedGames->lastPage()))->map(function ($page) use ($paginatedGroupedGames) {
+                    return [
+                        'url' => $paginatedGroupedGames->url($page),
+                        'label' => $page,
+                        'active' => $page == $paginatedGroupedGames->currentPage(),
+                    ];
+                })->toArray(),
+                [
+                    'url' => $paginatedGroupedGames->nextPageUrl(),
+                    'label' => 'بعدی',
+                    'active' => false,
+                ]
+            ]
+        ];
+        $response = [
+            'data' => $paginatedGroupedGames->items(),
+            'pagination' => $pagination,
+        ];
+        return response()->json($response);
+    }
+
+
+    public function roleVisits(Request $request)
+    {
+        $request->validate([
+            'game_id' => 'required|integer',
+        ]);
+        $game = Game::find($request->game_id);
+        $log = new UserLog();
+        $log->user_id = $request->user()->id;
+        $game->logs()->save($log);
+    }
+
+    public function roleVisitLogs(Request $request)
+    {
+        $request->validate([
+            'game_id' => 'required|integer',
+        ]);
+        $game = Game::find($request->game_id);
+        $logs = UserLog::with("user")->where("loggable_id", $game->id)->latest()->get();
+        return response()->json($logs);
     }
 }

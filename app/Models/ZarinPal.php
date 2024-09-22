@@ -13,14 +13,11 @@ class ZarinPal extends Model
 
     public function __construct($amount, $orderId = null){
 
-        $this->MerchantID = 'be70dcee-d152-4327-9070-749163eb3547'; //Required
+        //$this->MerchantID = 'be70dcee-d152-4327-9070-749163eb3547'; //Required
+        $this->MerchantID = env("ZARINPAL_MERCHANT_KEY"); //Required
         $this->Amount = $amount; //Amount will be based on Toman - Required
         $this->Description = 'خرید بلیط شرکت در مسابقه'; // Required
         $this->CallbackURL = 'https://api.21sport.club/api/game/payment/verify/'.$orderId; // Required
-        //$this->CallbackURL = 'http://localhost/public/api/game/payment/verify/'.$orderId; // Required
-
-
-
     }
 
     public function doPayment(){

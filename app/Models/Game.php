@@ -24,9 +24,16 @@ class Game extends Model
     {
         return $this->belongsTo(User::class, 'god_id');
     }
+    public function mvpUser()    {
+        return $this->belongsTo(User::class, 'mvp');
+    }
     public function scenario()
     {
         return $this->belongsTo(Scenario::class, 'game_scenario');
+    }
+    public function logs()
+    {
+        return $this->morphMany(UserLog::class, 'loggable');
     }
     public function history()
     {

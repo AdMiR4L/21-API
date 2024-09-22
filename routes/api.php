@@ -24,8 +24,15 @@ Route::post('/forgot/password/code', [AuthController::class, 'forgotPasswordSend
 
 
 Route::get('/articles', [ArticleController::class, 'index']);
+Route::get('/articles/archive', [ArticleController::class, 'archive']);
+Route::get('/article/{slug}', [ArticleController::class, 'article']);
 Route::get('/leaderboard', [HomeController::class, 'leaderboard']);
+Route::get('/games/leaderboard', [HomeController::class, 'gamesLeaderboard']);
 Route::post('/search', [HomeController::class, 'search']);
+Route::get('/games/archive', [GameController::class, 'archive']);
+Route::get('/questions', [HomeController::class, 'questions']);
+Route::get('/articles/comments', [ArticleController::class, 'comments']);
+
 
 
 
@@ -41,6 +48,12 @@ Route::group(['middleware' => 'auth:sanctum'] , function () {
     Route::post('/user/nickname', [DashboardController::class, 'nickname']);
     Route::post('/user/update', [DashboardController::class, 'update']);
     Route::post('/user/avatar', [DashboardController::class, 'avatar']);
+    Route::get('/user/transactions', [DashboardController::class, 'transactions']);
+    Route::get('/user/history', [DashboardController::class, 'history']);
+
+    Route::post('/article/like', [ArticleController::class, 'like']);
+    Route::post('/article/comment/add', [ArticleController::class, 'commentAdd']);
+
     Route::post('/game/reserve', [GameController::class, 'reserve']);
     Route::post('/game/edit', [GameController::class, 'gameEdit']);
     Route::post('/game/setting', [GameController::class, 'settingEdit']);
@@ -64,11 +77,14 @@ Route::group(['middleware' => 'auth:sanctum'] , function () {
     Route::get('/admin/users', [AdminController::class, 'users']);
     Route::get('/admin/users/{id}', [AdminController::class, 'user']);
     Route::post('/admin/user/update/{id}', [AdminController::class, 'userUpdate']);
+    Route::post('/admin/user/password/{id}', [AdminController::class, 'password']);
+    Route::get('/admin/questions', [AdminController::class, 'questions']);
+    Route::post('/admin/question/add', [AdminController::class, 'questionAdd']);
+    Route::post('/game/roles/visit', [GameController::class, 'roleVisits']);
+    Route::get('/game/visit/logs', [GameController::class, 'roleVisitLogs']);
 });
 
 Route::post('/find/user', [GameController::class, 'user']);
-
-
 Route::get('/games', [GameController::class, 'index']);
 Route::get('/games/{id}', [GameController::class, 'single']);
 

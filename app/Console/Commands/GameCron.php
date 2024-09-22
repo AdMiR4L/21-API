@@ -37,7 +37,7 @@ class GameCron extends Command
                     continue; // Skip this iteration
                 }*/
                 $game = new Game();
-                $game->capacity = 13;
+                $game->capacity = 10;
                 $game->extra_capacity = 0;
                 $game->available_capacity = $game->capacity + $game->extra_capacity;
                 $game->game_scenario = null;

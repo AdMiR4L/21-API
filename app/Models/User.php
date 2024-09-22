@@ -168,12 +168,5 @@ class User extends Authenticatable
         return $query;
     }
 
-    public static function checkUserGrade($gameGrade, $userGrade)
-    {
-        $gameGradeParts = explode('-', $gameGrade);
-        if (in_array($userGrade, $gameGradeParts))
-            return true;
-        else
-            return false;
-    }
+
 }
