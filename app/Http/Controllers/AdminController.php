@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Article;
+use App\Models\Category;
 use App\Models\Question;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -9,6 +11,9 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
+    public function make_slug($string) {
+        return preg_replace('/\s+/u', '-', trim($string));
+    }
     public function users()
     {
         $users = User::query()->orderBy('id', 'desc')->paginate(10);
@@ -64,5 +69,47 @@ class AdminController extends Controller
         $question->description = $request->description;
         $question->save();
         return response()->json('آیتم با موفقیت افزوده شد', 200);
+    }
+    public function questionEdit(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|integer',
+            'title' => 'required|string|min:3',
+            'description' => 'required|string|min:10',
+        ]);
+        $question = Question::query()->find($request->id);
+        $question->title = $request->title;
+        $question->description = $request->description;
+        $question->save();
+        return response()->json('آیتم با موفقیت ویرایش شد', 200);
+    }
+
+
+    public function articles()
+    {
+        $articles = Article::query()->latest()->paginate(10);
+        return response()->json($articles);
+    }
+    public function articlesAdd(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string|min:3',
+            'description' => 'required|string|min:10',
+            'category_id' => 'required|integer',
+            'status' => 'required|integer',
+        ]);
+        $question = new Question();
+        $question->title = $request->title;
+        $question->slug = $this->make_slug($request->title);
+        $question->description = $request->description;
+        $question->status = $request->status;
+        $question->save();
+        return response()->json('آیتم با موفقیت افزوده شد', 200);
+    }
+
+    public function categories()
+    {
+        $categories = Category::all();
+        return response()->json($categories);
     }
 }

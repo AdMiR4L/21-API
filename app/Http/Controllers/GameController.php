@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\SendRolesNotification;
 use App\Events\SendUserCharacterWithSMS;
 use App\Models\Game;
 use App\Models\History;
@@ -11,18 +12,20 @@ use App\Models\Scenario;
 use App\Models\User;
 use App\Models\UserLog;
 use App\Models\ZarinPal;
+use App\Notifications\RolesPushNotification;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
 
 class GameController extends Controller
 {
     public function index()
     {
-        $games = Game::query()->where('special', 0)->latest()->take(15)->get();
+        $games = Game::with('scenario')->where('special', 0)->latest()->take(15)->get();
         //$games = Game::query()->where('special', 0)->orderBy('created_at', 'DESC')->take(16)->get();
         return response()->json($games);
     }
@@ -101,6 +104,7 @@ class GameController extends Controller
         $request->validate([
             'game_id' => 'required|integer',
             'chair_no' => 'required|string|max:255',
+            'amount' => 'required|integer',
         ]);
         $user = $request->user();
 
@@ -110,15 +114,16 @@ class GameController extends Controller
 
 
         $game = Game::findOrFail($request->game_id);
+        $price = $game->price * $request->amount;
         $order = new Order();
-        $order->amount = $game->price;
+        $order->amount = $price;
         $order->user_id = $request->user()->id;
         $order->game_id = $game->id;
         $order->type = Game::class;
         $order->method = "ZarinPal";
         $order->save();
 
-        $payment = new ZarinPal($game->price , $order->id);
+        $payment = new ZarinPal($price , $order->id);
         $result = $payment->doPayment();
         $order->authority = $result->Authority;
         $order->save();
@@ -390,13 +395,23 @@ class GameController extends Controller
         foreach ($history as $item) {
             $user = $users->get($item->user_id);
             if ($user)
-                event(new SendUserCharacterWithSMS($user, $game));
+                event(new SendRolesNotification($user, $game));
+                //$user->notify(new RolesPushNotification($user, $game));
+                //Notification::send($user, new RolesPushNotification($user, $game));
+
+                //*** event(new SendUserCharacterWithSMS($user, $game));
         }
 
         return response()->json("نقش ها با موفقیت از طریق پیامک ارسال شدند", 200);
     }
 
 
+    public function sendNotification()
+    {
+        $user = User::find(1);
+            $game = Game::find(336);
+            Notification::send($user, new RolesPushNotification($user, $game));
+    }
 
     public function scoresEdit(Request $request)
     {
@@ -426,7 +441,10 @@ class GameController extends Controller
         $game->save();
 
         // Fetch all history records related to the game in one query
-        $histories = History::where('game_id', $game->id)->get();
+        //$histories = History::where('game_id', $game->id)->get();
+        $histories = History::where('game_id', $game->id)
+            ->whereDate('created_at', '>=', '2024-09-22')
+            ->get();
         foreach ($histories as $history) {
             if (isset($request->scores[$history->user_id])) {
                 // Update individual history record
@@ -445,8 +463,13 @@ class GameController extends Controller
                 };
 
                 // Get the sum of all scores and wins for this user from the histories table
+                /*$userHistoryStats = History::query()
+                    ->where('user_id', $history->user_id)
+                    ->selectRaw('SUM(score) as total_score, SUM(win) as total_wins')
+                    ->first();*/
                 $userHistoryStats = History::query()
                     ->where('user_id', $history->user_id)
+                    ->whereDate('created_at', '>=', '2024-09-22')
                     ->selectRaw('SUM(score) as total_score, SUM(win) as total_wins')
                     ->first();
 
@@ -638,7 +661,7 @@ class GameController extends Controller
         $perPage = 7; // Number of groups (dates) per page
         $page = request()->input('page', 1); // Current page, default to 1 if not provided
         $today = now()->toDateString();
-        $yesterday = now()->subDay()->toDateString();
+        //$yesterday = now()->subDay()->toDateString();
         // Retrieve all records
         $games = Game::with('mvpUser', 'scenario')  // Eager load the MVP user relationship
         ->select(
@@ -651,7 +674,7 @@ class GameController extends Controller
             'game_scenario',
             'mvp'
         )
-            ->whereDate('created_at', '<', $yesterday)
+            ->whereDate('created_at', '<', $today)
             ->orderBy('created_at')
             ->orderBy('salon')
             ->orderBy('clock')

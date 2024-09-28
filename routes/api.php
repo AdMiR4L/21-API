@@ -7,7 +7,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\HomeController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
+use Pusher\Pusher;
 
 //Route::get('/getCharacters', [GameController::class, 'getScenarioCharacters']);
 Route::get('/cron', [GameController::class, 'cron']);
@@ -80,8 +82,14 @@ Route::group(['middleware' => 'auth:sanctum'] , function () {
     Route::post('/admin/user/password/{id}', [AdminController::class, 'password']);
     Route::get('/admin/questions', [AdminController::class, 'questions']);
     Route::post('/admin/question/add', [AdminController::class, 'questionAdd']);
+    Route::post('/admin/question/edit', [AdminController::class, 'questionEdit']);
     Route::post('/game/roles/visit', [GameController::class, 'roleVisits']);
     Route::get('/game/visit/logs', [GameController::class, 'roleVisitLogs']);
+
+    Route::get('/admin/categories', [AdminController::class, 'categories']);
+    Route::get('/admin/articles', [AdminController::class, 'articles']);
+    Route::post('/admin/articles/add', [AdminController::class, 'articlesAdd']);
+    Route::post('/admin/articles/edit', [AdminController::class, 'articlesEdit']);
 });
 
 Route::post('/find/user', [GameController::class, 'user']);
@@ -95,3 +103,41 @@ Route::get('/create-games', [GameController::class, 'cron']);
 Route::group(['middleware' => 'auth:sanctum'], function(){
     Route::post('user', [AuthController::class, 'user']);
 });
+
+
+// Broadcast::channel('notifications.{id}', function ($user, $id) {
+//    return (int) $user->id === (int) $id;
+//});
+
+
+Route::post('/pusher/auth', function (Request $request) {
+    // Ensure the user is authenticated
+    if (!$request->user()) {
+        return response()->json(['error' => 'Unauthorized'], 403);
+    }
+
+    // Extract the channel name and socket ID from the request
+    $channelName = $request->input('channel_name');
+    $socketId = $request->input('socket_id');
+
+    //return response()->json(  env('PUSHER_APP_KEY'));
+    try {
+        $pusher = new Pusher(
+            env('PUSHER_APP_KEY', "3247514ad7a97d81e55b"),
+            env('PUSHER_APP_SECRET', "f8173601c7bfc9d24d47"),
+            env('PUSHER_APP_ID', "1870141"),
+            [
+                'cluster' => env('PUSHER_APP_CLUSTER', "eu"),
+                'useTLS' => true,
+            ]
+        );
+
+        // Authenticate the channel
+        $auth = $pusher->socket_auth($channelName, $socketId);
+        return response($auth);
+    } catch (\Exception $e) {
+        // Log the error message
+        \Log::error('Pusher auth error: ' . $e->getMessage());
+        return response()->json(['error' => 'Internal Server Error'], 500);
+    }
+})->middleware('auth:sanctum');

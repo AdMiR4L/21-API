@@ -9,6 +9,8 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Minishlink\WebPush\Subscription;
+use Minishlink\WebPush\WebPush;
 
 class HomeController extends Controller
 {
@@ -39,12 +41,14 @@ class HomeController extends Controller
             $players = User::query()
                 ->whereBetween('updated_at', [$month, $endDate])
                 ->orderBy('score', 'desc')
+                ->where("role" , "User")
                 ->take(10)
                 ->get();
 
             $champ = User::query()
                 ->whereBetween('updated_at', [$week, $endDate])
                 ->orderBy('score', 'desc')
+                ->where("role" , "User")
                 ->first();
 
             return response()->json([
@@ -66,6 +70,7 @@ class HomeController extends Controller
 
         $players = User::query()
             ->orderBy('score', 'desc')
+            ->where("role" , "User")
             ->take(50)
             ->get();
 

@@ -7,9 +7,11 @@
     "require": {
         "php": "^8.2",
         "kavenegar/laravel": "^1.3",
+        "laravel-notification-channels/webpush": "^9.0",
         "laravel/framework": "^11.9",
         "laravel/sanctum": "^4.0",
-        "laravel/tinker": "^2.9"
+        "laravel/tinker": "^2.9",
+        "pusher/pusher-php-server": "^7.2"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
